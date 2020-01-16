@@ -240,11 +240,12 @@ var gctx dnsFilterContext // global dnsfilter context
 
 // Result holds state of hostname check
 type Result struct {
-	IsFiltered bool   `json:",omitempty"` // True if the host name is filtered
-	Reason     Reason `json:",omitempty"` // Reason for blocking / unblocking
-	Rule       string `json:",omitempty"` // Original rule text
-	IP         net.IP `json:",omitempty"` // Not nil only in the case of a hosts file syntax
-	FilterID   int64  `json:",omitempty"` // Filter ID the rule belongs to
+	IsFiltered bool     `json:",omitempty"` // True if the host name is filtered
+	Reason     Reason   `json:",omitempty"` // Reason for blocking / unblocking
+	Rule       string   `json:",omitempty"` // Original rule text
+	IP         net.IP   `json:",omitempty"` // Not nil only in the case of a hosts file syntax
+	FilterID   int64    `json:",omitempty"` // Filter ID the rule belongs to
+	clientTags []string `json:"-"`          // This rule applies only to the tagged clients
 
 	// for ReasonRewrite:
 	CanonName string   `json:",omitempty"` // CNAME value
@@ -268,23 +269,26 @@ func (d *Dnsfilter) CheckHostRules(host string, qtype uint16, setts *RequestFilt
 	return d.matchHost(host, qtype)
 }
 
-func clientTagMatch(rule string, tags []string) bool {
-	ctagStart := strings.Index(rule, "$ctag=")
-	if ctagStart < 0 {
+func clientTagMatch(ruleTags, clientTags []string) bool {
+	if len(ruleTags) == 0 {
 		return true
 	}
-	ctagStart += len("$ctag=")
-	//ctagEnd
 
-	if len(tags) == 0 {
+	if len(clientTags) == 0 {
 		return false
 	}
 
-	ctag := rule[ctagStart:]
-	for _, t := range tags {
-		if ctag == t {
-			log.Debug("Filter: matched rule by ctag '%s'", t)
+	iRule := 0
+	iClient := 0
+	for iRule != len(ruleTags) && iClient != len(clientTags) {
+		r := strings.Compare(ruleTags[iRule], clientTags[iClient])
+		if r == 0 {
+			log.Debug("Filter: matched rule by ctag '%s'", ruleTags[iRule])
 			return true
+		} else if r < 0 {
+			iRule++
+		} else {
+			iClient++
 		}
 	}
 
@@ -314,7 +318,7 @@ func (d *Dnsfilter) CheckHost(host string, qtype uint16, setts *RequestFiltering
 		if err != nil {
 			return result, err
 		}
-		if result.Reason.Matched() && clientTagMatch(result.Rule, setts.ClientTags) {
+		if result.Reason.Matched() && clientTagMatch(result.clientTags, setts.ClientTags) {
 			return result, nil
 		}
 	}
@@ -530,6 +534,7 @@ func (d *Dnsfilter) matchHost(host string, qtype uint16) (Result, error) {
 				res.Reason = NotFilteredWhiteList
 				res.IsFiltered = false
 			}
+			res.clientTags = netRule.GetClientTags()
 			return res, nil
 
 		} else if hostRule, ok := rule.(*rules.HostRule); ok {

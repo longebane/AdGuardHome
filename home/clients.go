@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -148,6 +149,7 @@ func (clients *clientsContainer) addFromConfig(objects []clientObject) {
 			}
 			cli.Tags = append(cli.Tags, t)
 		}
+		sort.Strings(cli.Tags)
 
 		_, err := clients.Add(cli)
 		if err != nil {
@@ -365,6 +367,7 @@ func (clients *clientsContainer) check(c *Client) error {
 			return fmt.Errorf("Invalid tag: %s", t)
 		}
 	}
+	sort.Strings(c.Tags)
 
 	if len(c.Upstreams) != 0 {
 		err := dnsforward.ValidateUpstreams(c.Upstreams)
