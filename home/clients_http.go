@@ -9,6 +9,7 @@ import (
 
 type clientJSON struct {
 	IDs                 []string `json:"ids"`
+	Tags                []string `json:"tags"`
 	Name                string   `json:"name"`
 	UseGlobalSettings   bool     `json:"use_global_settings"`
 	FilteringEnabled    bool     `json:"filtering_enabled"`
@@ -84,6 +85,7 @@ func jsonToClient(cj clientJSON) (*Client, error) {
 	c := Client{
 		Name:                cj.Name,
 		IDs:                 cj.IDs,
+		Tags:                cj.Tags,
 		UseOwnSettings:      !cj.UseGlobalSettings,
 		FilteringEnabled:    cj.FilteringEnabled,
 		ParentalEnabled:     cj.ParentalEnabled,
@@ -103,6 +105,7 @@ func clientToJSON(c *Client) clientJSON {
 	cj := clientJSON{
 		Name:                c.Name,
 		IDs:                 c.IDs,
+		Tags:                c.Tags,
 		UseGlobalSettings:   !c.UseOwnSettings,
 		FilteringEnabled:    c.FilteringEnabled,
 		ParentalEnabled:     c.ParentalEnabled,

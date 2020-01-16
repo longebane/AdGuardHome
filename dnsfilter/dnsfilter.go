@@ -31,6 +31,7 @@ type RequestFilteringSettings struct {
 	SafeSearchEnabled   bool
 	SafeBrowsingEnabled bool
 	ParentalEnabled     bool
+	ClientTags          []string
 	ServicesRules       []ServiceEntry
 }
 
@@ -267,6 +268,29 @@ func (d *Dnsfilter) CheckHostRules(host string, qtype uint16, setts *RequestFilt
 	return d.matchHost(host, qtype)
 }
 
+func clientTagMatch(rule string, tags []string) bool {
+	ctagStart := strings.Index(rule, "$ctag=")
+	if ctagStart < 0 {
+		return true
+	}
+	ctagStart += len("$ctag=")
+	//ctagEnd
+
+	if len(tags) == 0 {
+		return false
+	}
+
+	ctag := rule[ctagStart:]
+	for _, t := range tags {
+		if ctag == t {
+			log.Debug("Filter: matched rule by ctag '%s'", t)
+			return true
+		}
+	}
+
+	return false
+}
+
 // CheckHost tries to match the host against filtering rules,
 // then safebrowsing and parental if they are enabled
 func (d *Dnsfilter) CheckHost(host string, qtype uint16, setts *RequestFilteringSettings) (Result, error) {
@@ -290,7 +314,7 @@ func (d *Dnsfilter) CheckHost(host string, qtype uint16, setts *RequestFiltering
 		if err != nil {
 			return result, err
 		}
-		if result.Reason.Matched() {
+		if result.Reason.Matched() && clientTagMatch(result.Rule, setts.ClientTags) {
 			return result, nil
 		}
 	}
